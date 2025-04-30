@@ -22,20 +22,56 @@ user_admin_status = {}
 
 @bot.message_handler(commands=['start'])
 def show_menu(message):
-    telegram_id = message.from_user.id
+    if hasattr(message, 'callback_query') and message.callback_query:
+        telegram_id = message.callback_query.from_user.id
+    elif hasattr(message, 'from_user') and message.from_user:
+        telegram_id = message.from_user.id
+    elif hasattr(message, 'chat'):
+        telegram_id = message.chat.id
+    else:
+        print("Warning: Could not determine user ID")
+        telegram_id = None
     
+    # Get user info including admin status
     try:
-        user_resp = requests.get(f'{BACKEND_URL}/get_user_by_telegram_id/{telegram_id}')
-        user_resp.raise_for_status()
-        user_data = user_resp.json()
-        
-        is_admin = bool(user_data.get('admin', 0))
-        user_admin_status[telegram_id] = is_admin
-        
+        if telegram_id:
+            user_resp = requests.get(f'{BACKEND_URL}/get_user_by_telegram_id/{telegram_id}')
+            user_resp.raise_for_status()
+            user_data = user_resp.json()
+            
+            is_admin = bool(user_data.get('admin', 0))
+            user_admin_status[telegram_id] = is_admin
+            print(f"User {telegram_id} admin status: {is_admin}")
+        else:
+            is_admin = False
     except Exception as e:
         print(f"Error getting user data: {e}")
-        is_admin = False
-        user_admin_status[telegram_id] = is_admin
+        is_admin = telegram_id in user_admin_status and user_admin_status[telegram_id]
+    
+    keyboard = types.InlineKeyboardMarkup(row_width=3)
+    
+    show_lists = types.InlineKeyboardButton('📋 Показать списки', callback_data='show_lists')
+    group = types.InlineKeyboardButton('👥 Отобразить группу', callback_data='show_all_users')
+    swap = types.InlineKeyboardButton('🔄 Предложить обмен', callback_data='swap')
+    
+    keyboard.add(show_lists)
+    keyboard.add(swap)
+    keyboard.add(group)
+    
+    if is_admin:
+        add_list = types.InlineKeyboardButton('➕ Добавить список', callback_data='add_list')
+        remove_list = types.InlineKeyboardButton('🗑️ Удалить список', callback_data='remove_list')
+        keyboard.add(add_list)
+        keyboard.add(remove_list)
+    
+    admin_status_text = "👑 Вы администратор" if is_admin else "👤 Вы обычный пользователь"
+    
+    bot.send_message(
+        message.chat.id, 
+        f'Привет, это *Group Queue Bot!* Выбери команду\n\n{admin_status_text}', 
+        reply_markup=keyboard, 
+        parse_mode='Markdown'
+    )
     
     show_lists = types.InlineKeyboardButton('📋 Показать списки', callback_data='show_lists')
     group = types.InlineKeyboardButton('👥 Отобразить группу', callback_data='show_all_users')
@@ -51,14 +87,15 @@ def show_menu(message):
         remove_list = types.InlineKeyboardButton('🗑️ Удалить список', callback_data='remove_list')
         keyboard.add(add_list)
         keyboard.add(remove_list)
-
+    
+    admin_status_text = "👑 Вы администратор" if is_admin else "👤 Вы обычный пользователь"
+    
     bot.send_message(
         message.chat.id, 
-        'Привет, это *Group Queue Bot!* Выбери команду', 
+        f'Привет, это *Group Queue Bot!* Выбери команду\n\n{admin_status_text}', 
         reply_markup=keyboard, 
         parse_mode='Markdown'
     )
-
 @bot.callback_query_handler(func=lambda call: True)
 def callback_router(callback):
     if callback.data == 'show_lists':
@@ -122,6 +159,9 @@ def callback_router(callback):
         handle_cancel_swap(callback)
 
 def is_admin_user(telegram_id):
+    if not telegram_id:
+        return False
+        
     if telegram_id in user_admin_status:
         return user_admin_status[telegram_id]
     
@@ -132,12 +172,16 @@ def is_admin_user(telegram_id):
         
         is_admin = bool(user_data.get('admin', 0))
         user_admin_status[telegram_id] = is_admin
+        print(f"Fetched admin status for {telegram_id}: {is_admin}")
         return is_admin
     except Exception as e:
         print(f"Error checking admin status: {e}")
         return False
 
 def handle_show_lists(callback):
+    telegram_id = callback.from_user.id
+    is_admin = is_admin_user(telegram_id)
+    
     try:
         resp = requests.get(f'{BACKEND_URL}/get_all_lists')
         resp.raise_for_status()
@@ -820,13 +864,55 @@ def handle_confirm_swap(callback):
         bot.send_message(callback.message.chat.id, f"❌ Произошла ошибка при выполнении обмена: {str(e)}", reply_markup=keyboard)
 
 def handle_back_to_main(callback):
-    show_menu(callback.message)
+    telegram_id = callback.from_user.id
+    
+    try:
+        user_resp = requests.get(f'{BACKEND_URL}/get_user_by_telegram_id/{telegram_id}')
+        user_resp.raise_for_status()
+        user_data = user_resp.json()
+        
+        is_admin = bool(user_data.get('admin', 0))
+        user_admin_status[telegram_id] = is_admin
+        
+        keyboard = types.InlineKeyboardMarkup(row_width=3)
+        
+        show_lists = types.InlineKeyboardButton('📋 Показать списки', callback_data='show_lists')
+        group = types.InlineKeyboardButton('👥 Отобразить группу', callback_data='show_all_users')
+        swap = types.InlineKeyboardButton('🔄 Предложить обмен', callback_data='swap')
+        
+        keyboard.add(show_lists)
+        keyboard.add(swap)
+        keyboard.add(group)
+        
+        if is_admin:
+            add_list = types.InlineKeyboardButton('➕ Добавить список', callback_data='add_list')
+            remove_list = types.InlineKeyboardButton('🗑️ Удалить список', callback_data='remove_list')
+            keyboard.add(add_list)
+            keyboard.add(remove_list)
+        
+        admin_status_text = "👑 Вы администратор" if is_admin else "👤 Вы обычный пользователь"
+        
+        bot.send_message(
+            callback.message.chat.id, 
+            f'Привет, это *Group Queue Bot!* Выберите команду\n\n{admin_status_text}', 
+            reply_markup=keyboard, 
+            parse_mode='Markdown'
+        )
+    except Exception as e:
+        print(f"Error in back_to_main: {e}")
+        show_menu(callback.message)
 
 def handle_back_to_show_lists(callback):
+    telegram_id = callback.from_user.id
     handle_show_lists(callback)
 
 def handle_back_to_remove_lists(callback):
-    handle_remove_list(callback)
+    telegram_id = callback.from_user.id
+    if is_admin_user(telegram_id):
+        handle_remove_list(callback)
+    else:
+        bot.answer_callback_query(callback.id, "⚠️ У вас нет прав администратора для этого действия")
+        handle_back_to_main(callback)
 
 def handle_show_list_details(callback):
     try:
