@@ -18,21 +18,39 @@ user_states = {}
 swap_state = {}
 user_id_map = {}
 pending_swaps = {}
+user_admin_status = {}
 
 @bot.message_handler(commands=['start'])
 def show_menu(message):
+    telegram_id = message.from_user.id
+    
+    try:
+        user_resp = requests.get(f'{BACKEND_URL}/get_user_by_telegram_id/{telegram_id}')
+        user_resp.raise_for_status()
+        user_data = user_resp.json()
+        
+        is_admin = bool(user_data.get('admin', 0))
+        user_admin_status[telegram_id] = is_admin
+        
+    except Exception as e:
+        print(f"Error getting user data: {e}")
+        is_admin = False
+        user_admin_status[telegram_id] = is_admin
+    
     show_lists = types.InlineKeyboardButton('📋 Показать списки', callback_data='show_lists')
     group = types.InlineKeyboardButton('👥 Отобразить группу', callback_data='show_all_users')
-    add_list = types.InlineKeyboardButton('➕ Добавить список', callback_data='add_list')
-    remove_list = types.InlineKeyboardButton('🗑️ Удалить список', callback_data='remove_list')
     swap = types.InlineKeyboardButton('🔄 Предложить обмен', callback_data='swap')
-
-    keyboard = types.InlineKeyboardMarkup(row_width = 3)
+    
+    keyboard = types.InlineKeyboardMarkup(row_width=3)
     keyboard.add(show_lists)
     keyboard.add(swap)
     keyboard.add(group)
-    keyboard.add(add_list)
-    keyboard.add(remove_list)
+    
+    if is_admin:
+        add_list = types.InlineKeyboardButton('➕ Добавить список', callback_data='add_list')
+        remove_list = types.InlineKeyboardButton('🗑️ Удалить список', callback_data='remove_list')
+        keyboard.add(add_list)
+        keyboard.add(remove_list)
 
     bot.send_message(
         message.chat.id, 
@@ -50,10 +68,16 @@ def callback_router(callback):
         handle_show_all_users(callback)
     
     elif callback.data == 'add_list':
-        handle_add_list(callback)
+        if is_admin_user(callback.from_user.id):
+            handle_add_list(callback)
+        else:
+            bot.answer_callback_query(callback.id, "⚠️ У вас нет прав администратора для этого действия")
 
     elif callback.data == 'remove_list':
-        handle_remove_list(callback)
+        if is_admin_user(callback.from_user.id):
+            handle_remove_list(callback)
+        else:
+            bot.answer_callback_query(callback.id, "⚠️ У вас нет прав администратора для этого действия")
 
     elif callback.data == 'swap':
         handle_swap(callback)
@@ -71,8 +95,11 @@ def callback_router(callback):
         handle_show_list_details(callback)
 
     elif callback.data.startswith('remove_list_'):
-        handle_remove_list_details(callback)
-
+        if is_admin_user(callback.from_user.id):
+            handle_remove_list_details(callback)
+        else:
+            bot.answer_callback_query(callback.id, "⚠️ У вас нет прав администратора для этого действия")
+    
     elif callback.data.startswith('swap_list_'):
         handle_swap_list_selection(callback)
     
@@ -94,6 +121,21 @@ def callback_router(callback):
     elif callback.data.startswith('cancel_swap_'):
         handle_cancel_swap(callback)
 
+def is_admin_user(telegram_id):
+    if telegram_id in user_admin_status:
+        return user_admin_status[telegram_id]
+    
+    try:
+        user_resp = requests.get(f'{BACKEND_URL}/get_user_by_telegram_id/{telegram_id}')
+        user_resp.raise_for_status()
+        user_data = user_resp.json()
+        
+        is_admin = bool(user_data.get('admin', 0))
+        user_admin_status[telegram_id] = is_admin
+        return is_admin
+    except Exception as e:
+        print(f"Error checking admin status: {e}")
+        return False
 
 def handle_show_lists(callback):
     try:
@@ -873,6 +915,12 @@ def handle_text_input(message):
     current_state = user_states.get(chat_id)
     
     if current_state == 'adding_list':
+        if not is_admin_user(message.from_user.id):
+            bot.send_message(chat_id, "⚠️ У вас нет прав для добавления списков.")
+            user_states.pop(chat_id, None)
+            show_menu(message)
+            return
+            
         list_name = message.text.strip()
         
         if not list_name:
