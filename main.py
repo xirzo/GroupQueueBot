@@ -32,7 +32,6 @@ def show_menu(message):
         print("Warning: Could not determine user ID")
         telegram_id = None
     
-    # Get user info including admin status
     try:
         if telegram_id:
             user_resp = requests.get(f'{BACKEND_URL}/get_user_by_telegram_id/{telegram_id}')
@@ -72,30 +71,7 @@ def show_menu(message):
         reply_markup=keyboard, 
         parse_mode='Markdown'
     )
-    
-    show_lists = types.InlineKeyboardButton('📋 Показать списки', callback_data='show_lists')
-    group = types.InlineKeyboardButton('👥 Отобразить группу', callback_data='show_all_users')
-    swap = types.InlineKeyboardButton('🔄 Предложить обмен', callback_data='swap')
-    
-    keyboard = types.InlineKeyboardMarkup(row_width=3)
-    keyboard.add(show_lists)
-    keyboard.add(swap)
-    keyboard.add(group)
-    
-    if is_admin:
-        add_list = types.InlineKeyboardButton('➕ Добавить список', callback_data='add_list')
-        remove_list = types.InlineKeyboardButton('🗑️ Удалить список', callback_data='remove_list')
-        keyboard.add(add_list)
-        keyboard.add(remove_list)
-    
-    admin_status_text = "👑 Вы администратор" if is_admin else "👤 Вы обычный пользователь"
-    
-    bot.send_message(
-        message.chat.id, 
-        f'Привет, это *Group Queue Bot!* Выбери команду\n\n{admin_status_text}', 
-        reply_markup=keyboard, 
-        parse_mode='Markdown'
-    )
+
 @bot.callback_query_handler(func=lambda call: True)
 def callback_router(callback):
     if callback.data == 'show_lists':
