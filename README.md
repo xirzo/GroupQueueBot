@@ -40,7 +40,7 @@ Create a `.env` file in the root directory with the following variables:
 
 ```
 TOKEN=your_telegram_bot_token_here
-BACKEND_URL=your_backend_server_url_here
+BACKEND_URL=http://localhost:5000 (or which you use)
 ```
 
 ## 💻 Running Locally
