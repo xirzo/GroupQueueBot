@@ -43,12 +43,41 @@ TOKEN=your_telegram_bot_token_here
 BACKEND_URL=http://localhost:5000 (or which you use)
 ```
 
+## 🐳 Running with Docker
+
+### Option 1: Using an Environment File
+
+Create a `.env` file with the following contents:
+
+```
+TOKEN=your_telegram_bot_token
+BACKEND_URL=http://localhost:5000
+```
+
+Then run:
+
+```bash
+docker run --env-file .env group_queue:latest
+```
+
+### Option 2: Passing Environment Variables Directly
+
+```bash
+docker run -e TOKEN=your_telegram_bot_token -e BACKEND_URL=http://localhost:5000 group_queue:latest
+```
+
+## Building the Docker Image
+
+```bash
+docker build -t group_queue:latest .
+```
+
 ## 💻 Running Locally
 
 To run the bot locally for development or testing:
 
 ```bash
-python main.py
+python3 main.py
 ```
 
 ## 🌍 Deploying to a Server

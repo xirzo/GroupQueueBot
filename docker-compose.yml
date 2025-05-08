@@ -1,0 +1,12 @@
+services:
+  backend:
+   image: group-queue
+   restart: always
+   env_file: "backend.env"
+
+  frontend-bot:
+   depends_on: 
+    - backend
+   image: group-queue-bot
+   restart: always
+   env_file: "frontend-bot.env"

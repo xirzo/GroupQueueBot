@@ -5,12 +5,18 @@ import uuid
 from datetime import datetime, timedelta
 import threading
 import time
+import os
+from dotenv import load_dotenv
 
-from dotenv import dotenv_values
+load_dotenv()
 
-CONFIG = dotenv_values(".env")
-TOKEN = CONFIG['TOKEN']
-BACKEND_URL = CONFIG['BACKEND_URL']
+TOKEN = os.environ.get('TOKEN')
+BACKEND_URL = os.environ.get('BACKEND_URL')
+
+if not TOKEN:
+    raise ValueError("TOKEN environment variable is required")
+if not BACKEND_URL:
+    raise ValueError("BACKEND_URL environment variable is required")
 
 bot = telebot.TeleBot(TOKEN)
 
