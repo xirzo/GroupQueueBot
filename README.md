@@ -36,40 +36,16 @@ pip install pyTelegramBotAPI requests python-dotenv
 
 ### 3. Create environment variables
 
-Create a `.env` file in the root directory with the following variables:
-
-```
-TOKEN=your_telegram_bot_token_here
-BACKEND_URL=http://localhost:5000 (or which you use)
-```
-
-## 🐳 Running with Docker
-
-### Option 1: Using an Environment File
-
-Create a `.env` file with the following contents:
-
-```
-TOKEN=your_telegram_bot_token
-BACKEND_URL=http://localhost:5000
-```
-
-Then run:
+Copy given envs, and set **TOKEN** in **frontend-bot.env**.
 
 ```bash
-docker run --env-file .env group_queue:latest
+cp .backend.env backend.env && cp .frontend-bot.env frontend-bot.env 
 ```
 
-### Option 2: Passing Environment Variables Directly
+## 🐳 Running with Docker Compose
 
 ```bash
-docker run -e TOKEN=your_telegram_bot_token -e BACKEND_URL=http://localhost:5000 group_queue:latest
-```
-
-## Building the Docker Image
-
-```bash
-docker build -t group_queue:latest .
+docker compose up -d
 ```
 
 ## 💻 Running Locally
